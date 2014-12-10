@@ -1,24 +1,44 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
-    keep_md: true
+html_document:
+keep_md: true
 ---
 
 
 ## Loading and preprocessing the data
 
-
+```{r}
+library(lubridate)
+steps <- read.csv("./data/activity.csv")
+steps$date <- ymd(steps$date)
+good <- complete.cases(steps)
+goodsteps <- steps[good,]
+```
 
 ## What is mean total number of steps taken per day?
+```{r echo=FALSE}
+hist(goodsteps$steps,main="Histograms of Steps per Day",xlab = "Steps",ylab = "Days")
+print(paste("Mean steps per day:",round(mean(goodsteps$steps),digits = 4)))
+print(paste("Median steps per day:",round(median(goodsteps$steps),digits=4)))
 
+```
 
 
 ## What is the average daily activity pattern?
+```{r}
+activity <- aggregate(goodsteps$steps,by = list(goodsteps$interval), FUN = mean)
+plot(activity$x~activity$Group.1,type="l", 
+     main="Average Steps by Time Interval", xlab="Interval",ylab="Avg. Steps")
+print(paste("Interval with Max Avg Steps Per Day:", activity[which.max(activity$x),"Group.1"]))
 
-
+```
 
 ## Imputing missing values
+```{r}
+bad <- is.na(steps$steps)
+print(paste("Missing Data in DataSet ",sum(bad)))
+```
 
 
 
