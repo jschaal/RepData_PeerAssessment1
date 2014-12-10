@@ -13,33 +13,79 @@ library(lubridate)
 steps <- read.csv("./data/activity.csv")
 steps$date <- ymd(steps$date)
 good <- complete.cases(steps)
-goodsteps <- steps[good,]
+goodSteps <- steps[good,]
+dailySteps <- aggregate(goodSteps$steps,by=list(goodSteps$date), FUN=sum)
+names(dailySteps) <- c("date","steps")
 ```
 
 ## What is mean total number of steps taken per day?
-```{r echo=FALSE}
-hist(goodsteps$steps,main="Histograms of Steps per Day",xlab = "Steps",ylab = "Days")
-print(paste("Mean steps per day:",round(mean(goodsteps$steps),digits = 4)))
-print(paste("Median steps per day:",round(median(goodsteps$steps),digits=4)))
+```{r echo=TRUE}
+hist(dailySteps$steps,main="Histograms of Steps per Day",xlab = "Steps",ylab = "Days")
+origMean <- mean(dailySteps$steps)
+origMedian <- median(dailySteps$steps)
+paste("Mean steps per day:",round(origMean,digits = 4))
+paste("Median steps per day:",origMedian)
 
 ```
 
 
 ## What is the average daily activity pattern?
 ```{r}
-activity <- aggregate(goodsteps$steps,by = list(goodsteps$interval), FUN = mean)
-plot(activity$x~activity$Group.1,type="l", 
+activity <- aggregate(goodSteps$steps,by = list(goodSteps$interval), FUN = mean)
+names(activity) <- c("interval","steps")
+plot(activity$steps~activity$interval,type="l", 
      main="Average Steps by Time Interval", xlab="Interval",ylab="Avg. Steps")
-print(paste("Interval with Max Avg Steps Per Day:", activity[which.max(activity$x),"Group.1"]))
+paste("Interval with Max Avg Steps Per Day:", activity[which.max(activity$steps),"interval"])
 
 ```
 
 ## Imputing missing values
 ```{r}
 bad <- is.na(steps$steps)
-print(paste("Missing Data in DataSet ",sum(bad)))
+paste("Missing Data in DataSet:",sum(bad),"Records")
+```
+```{r}
+imputedSteps <- steps
+imputedSteps$adjustedSteps <- imputedSteps$steps
+for(j in 1:nrow(imputedSteps)) {
+    if (is.na(imputedSteps[j,"steps"])) {
+        interval <- imputedSteps[j,"interval"]
+        adjustedSteps <- activity[activity$interval == interval,"steps"]
+        imputedSteps[j,"adjustedSteps"] <- adjustedSteps
+    } 
+}
+
+imputedDailySteps <- aggregate(imputedSteps$adjustedSteps,by=list(imputedSteps$date), FUN=sum)
+names(imputedDailySteps) <- c("date","adjustedSteps")
+
+hist(imputedDailySteps$adjustedSteps,main="Adjusted Histograms of Steps per Day",xlab = "Steps",ylab = "Days")
+newMean <- mean(imputedDailySteps$adjustedSteps)
+newMedian <- median(imputedDailySteps$adjustedSteps)
+meanDiff <- origMean - newMean
+medianDiff <- origMedian - newMedian
+paste("Adjusted Mean steps per day:",round(newMean,digits = 4))
+paste("Adjusted Median steps per day:",newMedian)
+paste("Difference in Means:",meanDiff)
+paste("Difference in Medians:",medianDiff)
+```
+There is no significant difference in **means** (difference = `r meanDiff`) or **median** (difference = `r medianDiff`).
+However, there is an impact on the standard deviation of the total steps per day:
+```{r}
+origSD <- sd(dailySteps$steps)
+newSD <- sd(imputedDailySteps$adjustedSteps)
+paste("SD of Daily Total of Original Steps:",round(origSD,digits = 4))
+paste("SD of Daily Total of Adjusted Steps:",round(newSD,digits = 4))
 ```
 
 
 
+
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+library(lattice)
+imputedSteps$daytype <- factor(ifelse(weekdays(imputedSteps$date,abbreviate = TRUE) %in% 
+                                          c("Sat","Sun"),"weekend","weekday"))
+xyplot(mean(imputedSteps$goodSteps)~imputedSteps$interval|imputedSteps$daytype,
+       type="l",xlab="Time Interval",ylab="Steps",main="Average Steps by Time Interval")
+```
+
